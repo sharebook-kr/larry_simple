@@ -5,6 +5,7 @@ from PyQt5.QtCore import *
 import datetime
 import pykorbit
 import logging
+import time
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -148,11 +149,13 @@ class MyWindow(QMainWindow, form_class):
         self.korbit.sell_market_order("btc_krw", btc)
 
     def set_open_range(self):
-        time = QTime.currentTime().toString()
-        self.textEdit.insertPlainText("시가/변동성 갱신 " + time + "\n")
+        cur_time = QTime.currentTime().toString()
+        self.textEdit.insertPlainText("시가/변동성 갱신 " + cur_time + "\n")
 
         low, high, last, vol = pykorbit.get_market_detail("btc_krw")
         self.range = (high - low) * 0.5
+
+        time.sleep(1)           # ticker interval
         self.open = pykorbit.get_current_price("btc_krw")
         self.target = self.open + self.range
 
