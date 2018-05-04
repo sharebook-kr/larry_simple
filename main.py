@@ -123,7 +123,7 @@ class MyWindow(QMainWindow, form_class):
         logging.info("try_buy 함수 target: {0} hold: {1}".format(self.target, self.hold))
         if self.target is not None and self.hold is False:
             btc_cur_price = pykorbit.get_current_price("btc_krw")
-            if btc_cur_price > self.target:
+            if btc_cur_price is not None and btc_cur_price > self.target:
                 self.buy()
                 self.hold = True
 
