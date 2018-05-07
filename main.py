@@ -78,6 +78,11 @@ class MyWindow(QMainWindow, form_class):
         self.time_timer.start(1000)
         self.time_timer.timeout.connect(self.display_cur_time)
 
+        # 가격 조회 타이머
+        self.price_timer = QTimer(self)
+        self.price_timer.start(2000)
+        self.price_timer.timeout.connect(self.inquiry_cur_price)
+
         # refresh token 갱신 타이머
         self.refresh_timer = QTimer(self)
         self.refresh_timer.start(1000 * 60 * 30)
@@ -169,7 +174,7 @@ class MyWindow(QMainWindow, form_class):
             state = " (자동 매매 비활성화)"
         self.statusBar().showMessage(str_time + state)
 
-        # 1초마다 가격 조회 시키기
+    def inquiry_cur_price(self):
         self.inquiry_worker.start()
 
     @pyqtSlot(float)
