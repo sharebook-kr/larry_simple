@@ -167,12 +167,22 @@ class MyWindow(QMainWindow, form_class):
         cur_time = QTime.currentTime().toString()
         self.textEdit.insertPlainText("시가/변동성 갱신 " + cur_time + "\n")
 
-        low, high, last, vol = pykorbit.get_market_detail("btc_krw")
-        self.range = (high - low) * 0.5
+        try:
+            detail = pykorbit.get_market_detail("btc_krw")
+            if detail is not None:
+                low = detail[0]
+                high = detail[1]
+                self.range = (high - low) * 0.5
+        except:
+            pass
 
         time.sleep(1)           # ticker interval
-        self.open = pykorbit.get_current_price("btc_krw")
-        self.target = self.open + self.range
+        price = pykorbit.get_current_price("btc_krw")
+        if price is not None:
+            self.open = price
+
+        if self.open is not None and self.range is not None:
+            self.target = self.open + self.range
 
     def refresh_token(self):
         logging.info("refresh_token")
