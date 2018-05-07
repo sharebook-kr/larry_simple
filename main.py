@@ -5,6 +5,7 @@ from PyQt5.QtCore import *
 import datetime
 import pykorbit
 import logging
+import time
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -28,14 +29,14 @@ form_class = uic.loadUiType("window.ui")[0]
 # ---------------------------------------------------------------------------------------------------------------------
 class InquiryWorker(QThread):
     # 사용자 정의 시그널 (float 값을 하나 전달)
-    inquiry_finished = pyqtSignal(float)
+    finished = pyqtSignal(float)
 
     # run 이라는 이름 변경할 수 없음
     def run(self):
-        btc_price = pykorbit.get_current_price("btc_krw")               # 비트코인 현재가 조회
+        btc_price = pykorbit.get_current_price("btc_krw")              # 비트코인 현재가 조회
 
-        if btc_price is not None:                                       # 금액 조회가 정상적인 경우에만
-            self.inquiry_finished.emit(btc_price)                         # 일이 끝났음을 알려줌
+        if isinstance(btc_price, float):                                # 금액 조회가 정상적인 경우에만
+            self.finished.emit(btc_price)                               # 일이 끝났음을 알려줌
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -57,7 +58,6 @@ class MyWindow(QMainWindow, form_class):
         self.range = None
         self.open = None
         self.target = None
-        self.hold = False
         self.activate = False
         self.email = None
         self.password = None
@@ -70,7 +70,7 @@ class MyWindow(QMainWindow, form_class):
 
     def create_threads(self):
         self.inquiry_worker = InquiryWorker()
-        self.inquiry_worker.inquiry_finished.connect(self.display_cur_price)
+        self.inquiry_worker.finished.connect(self.display_cur_price)
 
     def create_timers(self):
         # 시간 출력 타이머
@@ -125,19 +125,19 @@ class MyWindow(QMainWindow, form_class):
                 self.try_buy()
 
     def try_buy(self):
-        logging.info("try_buy 함수 target: {0} hold: {1}".format(self.target, self.hold))
-        if self.target is not None and self.hold is False:
+        logging.info("try_buy {}".format(self.target))
+        if self.target is not None and self.get_btc_balance() == 0:
             btc_cur_price = pykorbit.get_current_price("btc_krw")
-            if btc_cur_price > self.target:
+            if btc_cur_price is not None and btc_cur_price > self.target:
                 self.buy()
-                self.hold = True
 
     def try_sell(self):
-        if self.hold is True:
+        logging.info("try_sell")
+        if self.get_btc_balance() != 0:
             self.sell()
-            self.hold = False
 
     def buy(self):
+        logging.info("buy")
         # 원화 잔고 조회
         self.textEdit.insertPlainText("비트코인 시장가 매수\n")
         balances = self.korbit.get_balances()
@@ -146,26 +146,41 @@ class MyWindow(QMainWindow, form_class):
         self.korbit.buy_market_order("btc_krw", krw)
 
     def sell(self):
+        logging.info("sell")
         # 비트코인 잔고 조회
         self.textEdit.insertPlainText("비트코인 시장가 매도\n")
-        balances = self.korbit.get_balances()
-        btc = int(balances['btc']['available'])
+        btc = self.get_btc_balance()
         self.korbit.sell_market_order("btc_krw", btc)
 
+    def get_btc_balance(self):
+        logging.info("get_btc_balance-1")
+        balances = self.korbit.get_balances()
+        logging.info("get_btc_balance-2")
+        if balances is None:
+            return 0
+        else:
+            btc = float(balances['btc']['available'])
+            return btc
+
     def set_open_range(self):
-        time = QTime.currentTime().toString()
-        self.textEdit.insertPlainText("시가/변동성 갱신 " + time + "\n")
+        logging.info("set_open_range")
+        cur_time = QTime.currentTime().toString()
+        self.textEdit.insertPlainText("시가/변동성 갱신 " + cur_time + "\n")
 
         low, high, last, vol = pykorbit.get_market_detail("btc_krw")
         self.range = (high - low) * 0.5
+
+        time.sleep(1)           # ticker interval
         self.open = pykorbit.get_current_price("btc_krw")
         self.target = self.open + self.range
 
     def refresh_token(self):
+        logging.info("refresh_token")
         self.korbit.renew_access_token()
 
     def display_cur_time(self):
-        now =  datetime.datetime.now()
+        logging.info("display_cur_time")
+        now = datetime.datetime.now()
         str_time = now.strftime("%Y-%m-%d %H:%M:%S")
 
         if self.activate:
@@ -195,10 +210,11 @@ class MyWindow(QMainWindow, form_class):
             self.tableWidget.setItem(0, 3, target)
 
         # 보유 여부 출력
-        if self.hold is True:
+        if self.get_btc_balance() != 0:
             state = QTableWidgetItem("보유 중")
         else:
             state = QTableWidgetItem("미보유 중")
+
         self.tableWidget.setItem(0, 4, state)
 
     def read_secret(self):
