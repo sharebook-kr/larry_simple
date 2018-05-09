@@ -4,24 +4,7 @@ from PyQt5 import uic
 from PyQt5.QtCore import *
 import datetime
 import pykorbit
-import logging
 import time
-
-
-# ---------------------------------------------------------------------------------------------------------------------
-# Logger
-# ---------------------------------------------------------------------------------------------------------------------
-logger = logging.getLogger()
-#logger.setLevel(logging.DEBUG)
-logger.setLevel(logging.CRITICAL)
-
-file_handler = logging.FileHandler("log.txt", encoding="utf-8")
-stream_handler = logging.StreamHandler()
-logger.addHandler(file_handler)
-logger.addHandler(stream_handler)
-
-
-form_class = uic.loadUiType("window.ui")[0]
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -42,27 +25,28 @@ class InquiryWorker(QThread):
 # ---------------------------------------------------------------------------------------------------------------------
 # Main Window
 # ---------------------------------------------------------------------------------------------------------------------
+form_class = uic.loadUiType("window.ui")[0]
 class MyWindow(QMainWindow, form_class):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
 
-        self.init()
-        self.create_korbit()
-        self.create_threads()
-        self.create_timers()
-        self.set_signal_slots()
-
-    def init(self):
-        self.tableWidget.setRowCount(1)
         self.range = None
         self.open = None
         self.target = None
         self.activate = False
+        self.cur_btc_price = None
+
         self.email = None
         self.password = None
         self.key = None
         self.secret = None
+
+        self.tableWidget.setRowCount(1)
+        self.create_korbit()
+        self.create_threads()
+        self.create_timers()
+        self.set_signal_slots()
 
     def create_korbit(self):
         self.read_secret()
@@ -109,87 +93,75 @@ class MyWindow(QMainWindow, form_class):
     def trading(self):
         now = datetime.datetime.now()
         str_now = now.strftime("%H:%M:%S")                  # 현재 시간
-        str_target = self.timeEdit.time().toString()          # 타겟 시간
+        str_target = self.timeEdit.time().toString()          # 타겟 시간1
+        target2 = self.timeEdit.time().addSecs(5)             # 타겟 시간2
+        str_target2 = target2.toString()
         sell_target = self.timeEdit_2.time().toString()       # 매도 타겟 시간
+        balances = self.korbit.get_balances()
 
-        logging.info("trading 함수 active: {0}".format(self.activate))
         if self.activate is True:
             if str_now == str_target:
-                logging.info("trading 함수 set open range")
+                self.set_open_range()
+            elif str_now == str_target2 and self.target is None:
                 self.set_open_range()
             elif str_now == sell_target:
-                logging.info("trading 함수 try sell")
-                self.try_sell()
+                self.try_sell(balances)
             else:
-                logging.info("trading 함수 try buy")
-                self.try_buy()
+                self.try_buy(balances)
 
-    def try_buy(self):
-        logging.info("try_buy {}".format(self.target))
-        if self.target is not None and self.get_btc_balance() == 0:
-            btc_cur_price = pykorbit.get_current_price("btc_krw")
-            if btc_cur_price is not None and btc_cur_price > self.target:
-                self.buy()
+    def try_buy(self, balances):
+        if balances is not None:
+            btc_balance = float(balances['btc']['available'])
+            krw_balance = int(balances['krw']['available'])
+        else:
+            btc_balance = 0
 
-    def try_sell(self):
-        logging.info("try_sell")
-        if self.get_btc_balance() != 0:
-            self.sell()
+        if self.target is not None and btc_balance == 0:
+            if self.cur_btc_price is not None and self.cur_btc_price > self.target:
+                self.buy(krw_balance)
 
-    def buy(self):
-        logging.info("buy")
+    def try_sell(self, balances):
+        if balances is not None:
+            btc_balance = float(balances['btc']['available'])
+        else:
+            btc_balance = 0
+
+        if btc_balance != 0:
+            self.sell(btc_balance)
+
+    def buy(self, krw_balance):
         # 원화 잔고 조회
         self.textEdit.insertPlainText("비트코인 시장가 매수\n")
-        balances = self.korbit.get_balances()
-        krw = int(balances['krw']['available'])
-        logger.info(krw)
-        self.korbit.buy_market_order("btc_krw", krw)
+        self.korbit.buy_market_order("btc_krw", krw_balance)
+        self.tableWidget.setItem(0, 4, QTableWidgetItem("보유 중"))
 
-    def sell(self):
-        logging.info("sell")
+    def sell(self, btc_balance):
         # 비트코인 잔고 조회
         self.textEdit.insertPlainText("비트코인 시장가 매도\n")
-        btc = self.get_btc_balance()
-        self.korbit.sell_market_order("btc_krw", btc)
-
-    def get_btc_balance(self):
-        logging.info("get_btc_balance-1")
-        balances = self.korbit.get_balances()
-        logging.info("get_btc_balance-2")
-        if balances is None:
-            return 0
-        else:
-            btc = float(balances['btc']['available'])
-            return btc
+        self.korbit.sell_market_order("btc_krw", btc_balance)
+        self.tableWidget.setItem(0, 4, QTableWidgetItem("미보유 중"))
 
     def set_open_range(self):
-        logging.info("set_open_range")
         cur_time = QTime.currentTime().toString()
         self.textEdit.insertPlainText("시가/변동성 갱신 " + cur_time + "\n")
 
         try:
             detail = pykorbit.get_market_detail("btc_krw")
             if detail is not None:
-                low = detail[0]
-                high = detail[1]
+                low, high, last, volume = detail
                 self.range = (high - low) * 0.5
+                self.open = last
+                self.target = self.open + self.range
         except:
-            pass
-
-        time.sleep(1)           # ticker interval
-        price = pykorbit.get_current_price("btc_krw")
-        if price is not None:
-            self.open = price
-
-        if self.open is not None and self.range is not None:
-            self.target = self.open + self.range
+            self.range = None
+            self.open = None
+            self.target = None
+            self.textEdit.insertPlainText("시가/변동성 갱신 (실패) " + cur_time + "\n")
 
     def refresh_token(self):
-        logging.info("refresh_token")
         self.korbit.renew_access_token()
 
     def display_cur_time(self):
-        logging.info("display_cur_time")
         now = datetime.datetime.now()
         str_time = now.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -204,6 +176,9 @@ class MyWindow(QMainWindow, form_class):
 
     @pyqtSlot(float)
     def display_cur_price(self, btc_price):
+        # 비트코인 현재가 저장
+        self.cur_btc_price = btc_price
+
         name = QTableWidgetItem(str("BTC"))
         price = QTableWidgetItem(str(btc_price))
         self.tableWidget.setItem(0, 0, name)
@@ -215,28 +190,15 @@ class MyWindow(QMainWindow, form_class):
             self.tableWidget.setItem(0, 2, open)
 
         # 목표가 출력
-        if self.open is not None:
+        if self.target is not None:
             target = QTableWidgetItem(str(self.target))
             self.tableWidget.setItem(0, 3, target)
 
-        # 보유 여부 출력
-        if self.get_btc_balance() != 0:
-            state = QTableWidgetItem("보유 중")
-        else:
-            state = QTableWidgetItem("미보유 중")
-
-        self.tableWidget.setItem(0, 4, state)
-
     def read_secret(self):
-        logging.info("read secret 시작")
         f = open("secret.conf")
         lines = f.readlines()
-        self.email = lines[0].rstrip()
-        self.password = lines[1].rstrip()
-        self.key = lines[2].rstrip()
-        self.secret = lines[3].rstrip()
+        self.email, self.password, self.key, self.secret = (line.strip() for line in lines)
         f.close()
-        logging.info("read secret 종료")
 
 
 if __name__ == "__main__":
