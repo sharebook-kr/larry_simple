@@ -16,7 +16,7 @@ class InquiryWorker(QThread):
 
     # run 이라는 이름 변경할 수 없음
     def run(self):
-        btc_price = pykorbit.get_current_price("btc_krw")              # 비트코인 현재가 조회
+        btc_price = pykorbit.get_current_price("BTC")              # 비트코인 현재가 조회
 
         if isinstance(btc_price, float):                                # 금액 조회가 정상적인 경우에만
             self.finished.emit(btc_price)                               # 일이 끝났음을 알려줌
@@ -132,13 +132,13 @@ class MyWindow(QMainWindow, form_class):
     def buy(self, krw_balance):
         # 원화 잔고 조회
         self.textEdit.insertPlainText("비트코인 시장가 매수\n")
-        self.korbit.buy_market_order("btc_krw", krw_balance)
+        self.korbit.buy_market_order("BTC", krw_balance)
         self.tableWidget.setItem(0, 4, QTableWidgetItem("보유 중"))
 
     def sell(self, btc_balance):
         # 비트코인 잔고 조회
         self.textEdit.insertPlainText("비트코인 시장가 매도\n")
-        self.korbit.sell_market_order("btc_krw", btc_balance)
+        self.korbit.sell_market_order("BTC", btc_balance)
         self.tableWidget.setItem(0, 4, QTableWidgetItem("미보유 중"))
 
     def set_open_range(self):
@@ -146,7 +146,7 @@ class MyWindow(QMainWindow, form_class):
         self.textEdit.insertPlainText("시가/변동성 갱신 " + cur_time + "\n")
 
         try:
-            detail = pykorbit.get_market_detail("btc_krw")
+            detail = pykorbit.get_market_detail("BTC")
             if detail is not None:
                 low, high, last, volume = detail
                 self.range = (high - low) * 0.5
