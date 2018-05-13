@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>532</width>
+    <width>621</width>
     <height>497</height>
    </rect>
   </property>
@@ -23,7 +23,7 @@
      <rect>
       <x>10</x>
       <y>40</y>
-      <width>511</width>
+      <width>601</width>
       <height>231</height>
      </rect>
     </property>
@@ -44,6 +44,11 @@
     </column>
     <column>
      <property name="text">
+      <string>MA5</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
       <string>상승장/하락장</string>
      </property>
     </column>
@@ -58,7 +63,7 @@
      <rect>
       <x>10</x>
       <y>412</y>
-      <width>251</width>
+      <width>291</width>
       <height>41</height>
      </rect>
     </property>
@@ -69,9 +74,9 @@
    <widget class="QPushButton" name="btn_stop">
     <property name="geometry">
      <rect>
-      <x>270</x>
-      <y>412</y>
-      <width>251</width>
+      <x>320</x>
+      <y>410</y>
+      <width>291</width>
       <height>41</height>
      </rect>
     </property>
@@ -110,7 +115,7 @@
      <rect>
       <x>10</x>
       <y>282</y>
-      <width>511</width>
+      <width>601</width>
       <height>121</height>
      </rect>
     </property>
@@ -148,13 +153,26 @@
      </time>
     </property>
    </widget>
+   <widget class="QPushButton" name="btn_history">
+    <property name="geometry">
+     <rect>
+      <x>430</x>
+      <y>10</y>
+      <width>91</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>History 출력</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>532</width>
+     <width>621</width>
      <height>21</height>
     </rect>
    </property>
