@@ -114,7 +114,8 @@ class MyWindow(QMainWindow, form_class):
             btc_balance = float(balances['btc']['available'])
             krw_balance = int(balances['krw']['available'])
         else:
-            btc_balance = 0
+            btc_balance = None
+            krw_balance = None
 
         if self.target is not None and btc_balance == 0:
             if self.cur_btc_price is not None and self.cur_btc_price > self.target:
